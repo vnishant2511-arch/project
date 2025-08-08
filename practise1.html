@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Live Character Counter</title>
+  <style>
+    :root{--bg:#f7f8fb;--card:#ffffff;--accent:#2563eb;--muted:#6b7280;--danger:#dc2626;--success:#16a34a}
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{background:var(--card);width:100%;max-width:760px;border-radius:12px;padding:20px 22px;box-shadow:0 6px 20px rgba(10,20,40,0.06)}
+    h1{margin:0 0 8px;font-size:20px}
+    p.lead{margin:0 0 18px;color:var(--muted);font-size:13px}
+
+    .row{display:flex;gap:18px;align-items:flex-start}
+    .left{flex:1}
+    textarea{width:100%;min-height:160px;padding:12px;border-radius:8px;border:1px solid #e6e9ef;font-size:15px;resize:vertical;line-height:1.45}
+    .controls{display:flex;gap:8px;align-items:center;margin-top:10px}
+    .counter{font-weight:600;font-size:14px;color:var(--muted);display:flex;align-items:center;gap:10px}
+    .progress{height:8px;border-radius:999px;background:#eef2ff;overflow:hidden;flex:1}
+    .progress > i{display:block;height:100%;width:0%;background:var(--accent);transition:width .12s linear}
+    .meta{font-size:13px;color:var(--muted)}
+    .right{width:200px}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    input[type=number]{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ef}
+    .hint{font-size:12px;color:var(--muted);margin-top:8px}
+    .danger{color:var(--danger)}
+    .success{color:var(--success)}
+
+    @media (max-width:700px){.row{flex-direction:column}.right{width:100%}}
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <h1>Live Character Counter</h1>
+    <p class="lead">Type in the box below — the counter and progress bar update instantly (works with Unicode characters).</p>
+
+    <div class="row">
+      <section class="left">
+        <textarea id="input" placeholder="Start typing..." aria-label="Text input for character counting"></textarea>
+
+        <div class="controls" aria-hidden="false">
+          <div class="counter" id="counter">
+            <span id="count">0</span>
+            <span class="meta">characters</span>
+          </div>
+
+          <div class="progress" aria-hidden="true" title="progress">
+            <i id="bar"></i>
+          </div>
+
+          <div class="meta" id="meta">0%</div>
+        </div>
+
+        <p class="hint">The counter counts user-perceived characters (grapheme clusters) where supported. Paste and delete update instantly.</p>
+      </section>
+
+      <aside class="right" aria-label="Settings">
+        <label for="maxLen">Set max characters (0 = unlimited)</label>
+        <input id="maxLen" type="number" min="0" value="280" />
+        <p class="hint">When the text exceeds the max, the counter turns red and the bar shows overflow.</p>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    // Helpers: grapheme-aware count when available
+    function graphemeCount(str){
+      try{
+        if (typeof Intl !== 'undefined' && Intl.Segmenter){
+          // Use grapheme segmentation when available
+          const seg = new Intl.Segmenter(undefined, {granularity: 'grapheme'});
+          // Segment returns an iterable of segments; counting without creating huge arrays
+          let count = 0;
+          for (const s of seg.segment(str)) count++;
+          return count;
+        }
+      }catch(e){/* fallback below */}
+      // Fallback: Array.from handles surrogate pairs reasonably well (not perfect for combining marks)
+      return Array.from(str).length;
+    }
+
+    const textarea = document.getElementById('input');
+    const countEl = document.getElementById('count');
+    const bar = document.getElementById('bar');
+    const meta = document.getElementById('meta');
+    const maxInput = document.getElementById('maxLen');
+
+    function update(){
+      const value = textarea.value;
+      const count = graphemeCount(value);
+      const maxVal = Math.max(0, parseInt(maxInput.value || '0', 10));
+      countEl.textContent = count;
+
+      // progress percentage (if maxVal is 0 => unlimited -> 0 to 100 relative to 200 chars)
+      let pct;
+      if (maxVal === 0){
+        // map to a soft-limit (200) so user still sees progress bar while unlimited
+        pct = Math.min(100, Math.round((count / 200) * 100));
+      } else {
+        pct = Math.min(200, Math.round((count / maxVal) * 100)); // allow >100 up to 200 for overflow visualization
+      }
+
+      bar.style.width = Math.min(pct, 200) + '%';
+      meta.textContent = Math.min(pct, 200) + '%';
+
+      // visual states
+      if (maxVal > 0 && count > maxVal){
+        countEl.classList.add('danger');
+        bar.style.background = getComputedStyle(document.documentElement).getPropertyValue('--danger');
+        meta.classList.add('danger');
+        meta.classList.remove('success');
+        textarea.setAttribute('aria-invalid', 'true');
+      } else if (maxVal > 0 && count > Math.floor(maxVal * 0.9)){
+        // near limit
+        countEl.classList.remove('danger');
+        bar.style.background = 'linear-gradient(90deg,var(--accent) 0%, #f59e0b 100%)';
+        meta.classList.remove('danger');
+        meta.classList.add('success');
+        textarea.removeAttribute('aria-invalid');
+      } else {
+        countEl.classList.remove('danger');
+        meta.classList.remove('danger');
+        meta.classList.remove('success');
+        bar.style.background = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+        textarea.removeAttribute('aria-invalid');
+      }
+    }
+
+    // Update on input events: typing, paste, cut, etc.
+    textarea.addEventListener('input', update);
+    maxInput.addEventListener('input', update);
+
+    // Initialize
+    update();
+  </script>
+</body>
+</html>
