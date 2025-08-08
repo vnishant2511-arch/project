@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Interactive SVG Drawing Tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      background: #f6f8fa;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button, select {
+      padding: 8px 12px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .canvas-wrap {
+      border: 1px solid #d1d5db;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(16,24,40,0.05);
+    }
+
+    svg {
+      display: block;
+      width: 900px;
+      height: 500px;
+      touch-action: none; /* helps with touchdrag behavior on mobile */
+      user-select: none;
+      cursor: crosshair;
+    }
+
+    .hint {
+      color: #5b6b77;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Interactive SVG Drawing Tool</h2>
+
+  <div class="toolbar">
+    <label for="shape">Shape:</label>
+    <select id="shape">
+      <option value="rect">Rectangle</option>
+      <option value="line">Line</option>
+    </select>
+
+    <label for="strokeWidth">Stroke:</label>
+    <select id="strokeWidth">
+      <option value="2">2 px</option>
+      <option value="4">4 px</option>
+      <option value="6">6 px</option>
+    </select>
+
+    <button id="clearBtn">Clear</button>
+  </div>
+
+  <div class="canvas-wrap" aria-label="SVG drawing area">
+    <svg id="svgCanvas" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Drawing canvas">
+      <!-- drawn shapes will be appended here -->
+      <defs>
+        <style>
+          .drawn { fill: rgba(59,130,246,0.06); stroke: rgb(59,130,246); stroke-linecap: round; stroke-linejoin: round; }
+        </style>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="hint">Click and drag inside the canvas to draw. Choose shape and stroke width above. Draw multiple shapes.</div>
+
+<script>
+(function () {
+  const svg = document.getElementById('svgCanvas');
+  const shapeSelect = document.getElementById('shape');
+  const strokeWidthSelect = document.getElementById('strokeWidth');
+  const clearBtn = document.getElementById('clearBtn');
+
+  let drawing = false;
+  let startX = 0;
+  let startY = 0;
+  let currentEl = null;     // the element being drawn ("rect" or "line")
+
+  // Utility: convert client coords to SVG coords
+  function getSVGPoint(clientX, clientY) {
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const ctm = svg.getScreenCTM().inverse();
+    return pt.matrixTransform(ctm);
+  }
+
+  function onPointerDown(evt) {
+    // support mouse and touch (pointer events)
+    if (evt.button === 2) return; // ignore right click
+    svg.setPointerCapture?.(evt.pointerId);
+    drawing = true;
+    const p = getSVGPoint(evt.clientX, evt.clientY);
+    startX = p.x;
+    startY = p.y;
+
+    const strokeW = parseFloat(strokeWidthSelect.value) || 2;
+
+    if (shapeSelect.value === 'rect') {
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', startX);
+      rect.setAttribute('y', startY);
+      rect.setAttribute('width', 0);
+      rect.setAttribute('height', 0);
+      rect.setAttribute('class', 'drawn');
+      rect.setAttribute('stroke-width', strokeW);
+      rect.setAttribute('fill', 'rgba(59,130,246,0.06)');
+      svg.appendChild(rect);
+      currentEl = rect;
+    } else { // line
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', startX);
+      line.setAttribute('y1', startY);
+      line.setAttribute('x2', startX);
+      line.setAttribute('y2', startY);
+      line.setAttribute('class', 'drawn');
+      line.setAttribute('stroke-width', strokeW);
+      line.setAttribute('fill', 'none');
+      svg.appendChild(line);
+      currentEl = line;
+    }
+    evt.preventDefault();
+  }
+
+  function onPointerMove(evt) {
+    if (!drawing || !currentEl) return;
+    const p = getSVGPoint(evt.clientX, evt.clientY);
+
+    if (currentEl.tagName === 'rect') {
+      // allow drawing in any drag direction (handle negative width/height)
+      const x = Math.min(startX, p.x);
+      const y = Math.min(startY, p.y);
+      const w = Math.abs(p.x - startX);
+      const h = Math.abs(p.y - startY);
+      currentEl.setAttribute('x', x);
+      currentEl.setAttribute('y', y);
+      currentEl.setAttribute('width', w);
+      currentEl.setAttribute('height', h);
+    } else if (currentEl.tagName === 'line') {
+      currentEl.setAttribute('x2', p.x);
+      currentEl.setAttribute('y2', p.y);
+    }
+    evt.preventDefault();
+  }
+
+  function onPointerUp(evt) {
+    if (!drawing) return;
+    svg.releasePointerCapture?.(evt.pointerId);
+    drawing = false;
+
+    // If the drawn shape is degenerate (zero size), remove it
+    if (currentEl) {
+      if (currentEl.tagName === 'rect') {
+        const w = parseFloat(currentEl.getAttribute('width') || 0);
+        const h = parseFloat(currentEl.getAttribute('height') || 0);
+        if (w < 2 && h < 2) svg.removeChild(currentEl);
+      } else if (currentEl.tagName === 'line') {
+        const x1 = parseFloat(currentEl.getAttribute('x1') || 0);
+        const y1 = parseFloat(currentEl.getAttribute('y1') || 0);
+        const x2 = parseFloat(currentEl.getAttribute('x2') || 0);
+        const y2 = parseFloat(currentEl.getAttribute('y2') || 0);
+        const dist = Math.hypot(x2 - x1, y2 - y1);
+        if (dist < 2) svg.removeChild(currentEl);
+      }
+    }
+    currentEl = null;
+    evt.preventDefault();
+  }
+
+  // Attach pointer event handlers (works for mouse, stylus, and touch)
+  svg.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('pointercancel', onPointerUp);
+
+  // Clear button
+  clearBtn.addEventListener('click', () => {
+    // remove all child elements except <defs>
+    const toRemove = [];
+    svg.childNodes.forEach(node => {
+      if (node.nodeType === 1 && node.nodeName !== 'defs') toRemove.push(node);
+    });
+    toRemove.forEach(n => svg.removeChild(n));
+  });
+
+  // Prevent context menu on right click inside svg for smoother drawing experience
+  svg.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // Optional: keyboard 'Escape' cancels current shape while drawing
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && drawing) {
+      if (currentEl && currentEl.parentNode) currentEl.parentNode.removeChild(currentEl);
+      currentEl = null;
+      drawing = false;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
