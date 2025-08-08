@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin Dashboard — Grid + Theme Switch</title>
+  <meta name="description" content="Responsive admin dashboard using CSS Grid with light/dark theme switching and persisted preference.">
+
+  <style>
+    /* =========================
+       Theme variables (light)
+       ========================= */
+    :root {
+      --bg: #f6f8fa;
+      --surface: #ffffff;
+      --muted: #6b7280;
+      --text: #0f172a;
+      --accent: #2563eb;
+      --accent-contrast: #ffffff;
+      --card-shadow: 0 6px 18px rgba(15,23,42,0.06);
+      --glass: rgba(255,255,255,0.6);
+    }
+
+    /* Dark theme variables override */
+    :root[data-theme="dark"] {
+      --bg: #0b1220;
+      --surface: #0f1724;
+      --muted: #94a3b8;
+      --text: #e6eef8;
+      --accent: #60a5fa;
+      --accent-contrast: #01203a;
+      --card-shadow: 0 8px 24px rgba(2,6,23,0.6);
+      --glass: rgba(255,255,255,0.03);
+    }
+
+    /* Basic reset */
+    * { box-sizing: border-box; }
+    html,body { height: 100%; margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    body {
+      background: linear-gradient(180deg, var(--bg), var(--bg));
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      padding: 18px;
+    }
+
+    /* Dashboard container */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      grid-template-rows: 64px 1fr;
+      grid-template-areas:
+        "sidebar header"
+        "sidebar main";
+      gap: 18px;
+      height: calc(100vh - 36px);
+    }
+
+    /* Responsive: collapse sidebar under 880px */
+    @media (max-width: 880px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+        grid-template-rows: 64px auto 1fr;
+        grid-template-areas:
+          "header"
+          "sidebar"
+          "main";
+      }
+      .sidebar { max-height: 220px; overflow:auto; }
+    }
+
+    /* Header */
+    header.app-header {
+      grid-area: header;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(0,0,0,0.04);
+    }
+    .brand {
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .logo {
+      width:40px;
+      height:40px;
+      display:inline-grid;
+      place-items:center;
+      font-weight:700;
+      color: var(--accent-contrast);
+      background: var(--accent);
+      border-radius:8px;
+      box-shadow: 0 4px 12px rgba(37,99,235,0.18);
+      flex:0 0 40px;
+    }
+    .title {
+      font-size:16px;
+      font-weight:600;
+    }
+    .header-actions {
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+    .search {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 8px 10px;
+      border: 1px solid rgba(0,0,0,0.04);
+      box-shadow: var(--card-shadow);
+    }
+    .search input {
+      border: none;
+      outline: none;
+      background: transparent;
+      min-width: 180px;
+      color: var(--text);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      grid-area: sidebar;
+      background: linear-gradient(180deg, var(--surface), var(--glass));
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(0,0,0,0.04);
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .nav-section { display:flex; flex-direction:column; gap:6px; }
+    .nav-item {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px;
+      border-radius:8px;
+      cursor:pointer;
+      color:var(--muted);
+      text-decoration:none;
+      user-select:none;
+    }
+    .nav-item:hover { background: rgba(0,0,0,0.03); color:var(--text); }
+    .nav-item.active { background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(96,165,250,0.06)); color:var(--accent); font-weight:600; }
+
+    /* Main content area */
+    main.main {
+      grid-area: main;
+      display:grid;
+      grid-template-columns: 1fr 340px;
+      gap:18px;
+    }
+
+    @media (max-width: 1100px) {
+      main.main { grid-template-columns: 1fr; }
+    }
+
+    .workspace {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(0,0,0,0.04);
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    /* KPI grid */
+    .kpi-grid {
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
+      gap:12px;
+    }
+    .kpi {
+      padding:12px;
+      border-radius:10px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      border:1px solid rgba(0,0,0,0.03);
+    }
+    .kpi .value { font-size:20px; font-weight:700; }
+    .kpi .label { font-size:12px; color:var(--muted); }
+
+    /* Chart placeholder */
+    .chart {
+      height:220px;
+      border-radius:10px;
+      background: linear-gradient(90deg, rgba(37,99,235,0.06), rgba(96,165,250,0.02));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--muted);
+      font-weight:600;
+      border:1px dashed rgba(0,0,0,0.04);
+    }
+
+    /* Right column (activity / recent) */
+    .sidepanel {
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-self:start;
+    }
+    .card {
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: var(--card-shadow);
+      border:1px solid rgba(0,0,0,0.04);
+    }
+    .card h4 { margin:0 0 8px 0; font-size:14px; }
+    .list { display:flex; flex-direction:column; gap:8px; }
+    .list-item {
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      align-items:center;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    /* Footer / small utility area */
+    .footer {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      font-size:13px;
+      color:var(--muted);
+      justify-content:space-between;
+      padding-top:6px;
+    }
+
+    /* Buttons & toggles */
+    .btn {
+      border: none;
+      padding: 8px 12px;
+      border-radius:8px;
+      background: var(--accent);
+      color: var(--accent-contrast);
+      cursor:pointer;
+      font-weight:600;
+    }
+    .toggle {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      background:var(--surface);
+      padding:6px 8px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,0.04);
+    }
+    .pill {
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(0,0,0,0.03);
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    /* Small helpers */
+    .muted { color: var(--muted); font-size:13px; }
+    .small { font-size:13px; color:var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="dashboard" id="dashboardRoot">
+
+    <!-- Header -->
+    <header class="app-header" role="banner">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">AD</div>
+        <div>
+          <div class="title">Admin Dashboard</div>
+          <div class="small muted">Overview & Reports</div>
+        </div>
+      </div>
+
+      <div class="header-actions" role="navigation" aria-label="Header actions">
+        <div class="search" role="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <input id="globalSearch" placeholder="Search..." aria-label="Search dashboard" />
+        </div>
+
+        <div class="toggle" title="Toggle dark / light theme">
+          <label for="themeSwitch" class="muted">Theme</label>
+          <button id="themeSwitch" aria-pressed="false" class="btn" type="button">Dark</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" role="complementary" aria-label="Main navigation">
+      <div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="font-weight:700">Navigation</div>
+          <div class="pill" id="collapseBtn" style="cursor:pointer" title="Toggle sidebar">Collapse</div>
+        </div>
+      </div>
+
+      <nav class="nav-section" aria-label="Main menu">
+        <a class="nav-item active" href="#" data-section="overview"><span>🏠</span> <span>Overview</span></a>
+        <a class="nav-item" href="#" data-section="orders"><span>📦</span> <span>Orders</span></a>
+        <a class="nav-item" href="#" data-section="products"><span>🛍️</span> <span>Products</span></a>
+        <a class="nav-item" href="#" data-section="customers"><span>👥</span> <span>Customers</span></a>
+        <a class="nav-item" href="#" data-section="settings"><span>⚙️</span> <span>Settings</span></a>
+      </nav>
+
+      <div style="margin-top:auto;">
+        <div class="small muted">Logged in as</div>
+        <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+          <div style="width:44px;height:44px;border-radius:8px;background:var(--accent);color:var(--accent-contrast);display:grid;place-items:center;font-weight:700;">NV</div>
+          <div>
+            <div style="font-weight:700">Nishant Verma</div>
+            <div class="small muted">Admin</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main area -->
+    <main class="main" role="main">
+
+      <!-- primary workspace -->
+      <section class="workspace" aria-labelledby="overviewHeading">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <h3 id="overviewHeading" style="margin:0">Dashboard Overview</h3>
+          <div class="small muted">Last 7 days • Updated just now</div>
+        </div>
+
+        <div class="kpi-grid" role="region" aria-label="Key performance indicators">
+          <div class="kpi">
+            <div class="label">Revenue</div>
+            <div class="value">₹ 1,24,500</div>
+            <div class="small muted">+8.2% vs last week</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Orders</div>
+            <div class="value">1,420</div>
+            <div class="small muted">+3.4% new</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Active Users</div>
+            <div class="value">4,820</div>
+            <div class="small muted">+2.1% </div>
+          </div>
+          <div class="kpi">
+            <div class="label">Conversion</div>
+            <div class="value">3.8%</div>
+            <div class="small muted">Stable</div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;">
+          <div class="chart" role="img" aria-label="Sales chart placeholder">
+            Sales chart (placeholder)
+          </div>
+          <div class="chart" role="img" aria-label="Traffic chart placeholder">
+            Traffic chart (placeholder)
+          </div>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:12px; align-items:center;">
+          <button class="btn">Create Report</button>
+          <div class="small muted">Export • Filter • Share</div>
+        </div>
+
+        <div class="footer" style="margin-top:12px;">
+          <div class="muted">© 2025 ExampleCorp</div>
+          <div class="small muted">Need help? <a href="#" style="color:var(--accent); text-decoration:none;">Support</a></div>
+        </div>
+      </section>
+
+      <!-- side panel -->
+      <aside class="sidepanel" aria-label="Side panel">
+        <div class="card">
+          <h4>Recent Activity</h4>
+          <div class="list">
+            <div class="list-item"><span>Order #2345 placed</span><span class="muted">2h</span></div>
+            <div class="list-item"><span>New user Joanna signed up</span><span class="muted">4h</span></div>
+            <div class="list-item"><span>Product "Phone X" low stock</span><span class="muted">1d</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>Quick Settings</h4>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <div class="pill">Email Alerts</div>
+            <div class="pill">Two-Factor</div>
+            <div class="pill">Auto-Backup</div>
+            <div class="pill">Integrations</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>Storage</h4>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="flex:1;">
+              <div style="height:8px; background:rgba(0,0,0,0.06); border-radius:6px; overflow:hidden;">
+                <div style="width:62%; height:8px; background:linear-gradient(90deg,var(--accent), rgba(96,165,250,0.6));"></div>
+              </div>
+              <div class="small muted" style="margin-top:8px;">62% used of 50 GB</div>
+            </div>
+            <div>
+              <button class="btn">Upgrade</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+    </main>
+
+  </div>
+
+  <script>
+    // -------------------------
+    // Theme switching & persist
+    // -------------------------
+    (function () {
+      const root = document.documentElement;
+      const themeBtn = document.getElementById('themeSwitch');
+
+      // get saved preference from localStorage
+      const saved = localStorage.getItem('dashboard_theme'); // 'dark' or 'light'
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+      function applyTheme(theme) {
+        if (theme === 'dark') {
+          root.setAttribute('data-theme', 'dark');
+          themeBtn.textContent = 'Light';
+          themeBtn.setAttribute('aria-pressed', 'true');
+        } else {
+          root.removeAttribute('data-theme');
+          themeBtn.textContent = 'Dark';
+          themeBtn.setAttribute('aria-pressed', 'false');
+        }
+      }
+
+      // initialize
+      const initial = saved || (prefersDark ? 'dark' : 'light');
+      applyTheme(initial);
+
+      themeBtn.addEventListener('click', () => {
+        const current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+        localStorage.setItem('dashboard_theme', next);
+      });
+    })();
+
+    // -------------------------
+    // Sidebar collapse toggle
+    // -------------------------
+    (function () {
+      const dashboard = document.getElementById('dashboardRoot');
+      const collapseBtn = document.getElementById('collapseBtn');
+      const sidebar = document.querySelector('.sidebar');
+
+      let collapsed = false;
+      collapseBtn.addEventListener('click', () => {
+        collapsed = !collapsed;
+        if (collapsed) {
+          // collapse to slim mode
+          sidebar.style.width = '72px';
+          sidebar.style.transition = 'width 220ms ease';
+          // hide text labels
+          document.querySelectorAll('.nav-item').forEach(n => {
+            n.style.justifyContent = 'center';
+            n.style.gap = '0px';
+            n.querySelectorAll('span')[1].style.display = 'none';
+          });
+          collapseBtn.textContent = 'Expand';
+        } else {
+          sidebar.style.width = '';
+          document.querySelectorAll('.nav-item').forEach(n => {
+            n.style.justifyContent = '';
+            n.style.gap = '';
+            n.querySelectorAll('span')[1].style.display = '';
+          });
+          collapseBtn.textContent = 'Collapse';
+        }
+      });
+    })();
+
+    // -------------------------
+    // Simple navigation active state
+    // -------------------------
+    (function () {
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+          // For demo: update heading text
+          const heading = document.getElementById('overviewHeading');
+          const section = item.getAttribute('data-section') || 'Overview';
+          heading.textContent = section.charAt(0).toUpperCase() + section.slice(1);
+        });
+      });
+    })();
+
+    // -------------------------
+    // Global search (demo)
+    // -------------------------
+    (function () {
+      const input = document.getElementById('globalSearch');
+      input.addEventListener('input', () => {
+        // Demo behavior: show search text in small muted span (could be enhanced)
+        // No server calls — immediate local feedback
+        // (Left intentionally simple for the exercise)
+      });
+    })();
+  </script>
+</body>
+</html>
