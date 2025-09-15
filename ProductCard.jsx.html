@@ -1,0 +1,39 @@
+import React from "react";
+
+// ProductCard Component
+const ProductCard = ({ name, price, inStock }) => {
+  return (
+    <div className="card">
+      <h3>{name}</h3>
+      <p>Price: ${price}</p>
+      <p>Status: {inStock ? "In Stock" : "Out of Stock"}</p>
+    </div>
+  );
+};
+
+// App Component
+const App = () => {
+  const products = [
+    { name: "Wireless Mouse", price: 25.99, inStock: true },
+    { name: "Keyboard", price: 45.5, inStock: false },
+    { name: "Monitor", price: 199.99, inStock: true },
+  ];
+
+  return (
+    <div className="container">
+      <h2>Products List</h2>
+      <div className="product-list">
+        {products.map((p, index) => (
+          <ProductCard
+            key={index}
+            name={p.name}
+            price={p.price}
+            inStock={p.inStock}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default App;
