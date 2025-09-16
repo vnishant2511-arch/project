@@ -1,0 +1,76 @@
+import React from "react";
+
+// Base Person class
+class Person {
+  constructor(name, age) {
+    this.name = name;
+    this.age = age;
+  }
+
+  getInfo() {
+    return `Name: ${this.name}, Age: ${this.age}`;
+  }
+}
+
+// Student subclass
+class Student extends Person {
+  constructor(name, age, course) {
+    super(name, age); // call parent constructor
+    this.course = course;
+  }
+
+  // override method
+  getInfo() {
+    return `${super.getInfo()}, Course: ${this.course}`;
+  }
+}
+
+// Teacher subclass
+class Teacher extends Person {
+  constructor(name, age, subject) {
+    super(name, age);
+    this.subject = subject;
+  }
+
+  // override method
+  getInfo() {
+    return `${super.getInfo()}, Subject: ${this.subject}`;
+  }
+}
+
+// React component to demonstrate
+const App = () => {
+  const student = new Student("Alice", 20, "Computer Science");
+  const teacher = new Teacher("Mr. John", 40, "Mathematics");
+
+  return (
+    <div style={styles.container}>
+      <h2>👨‍🏫 Person Class Hierarchy</h2>
+      <div style={styles.card}>
+        <h3>Student</h3>
+        <p>{student.getInfo()}</p>
+      </div>
+      <div style={styles.card}>
+        <h3>Teacher</h3>
+        <p>{teacher.getInfo()}</p>
+      </div>
+    </div>
+  );
+};
+
+// simple inline styling
+const styles = {
+  container: {
+    padding: "20px",
+    fontFamily: "Arial",
+  },
+  card: {
+    border: "1px solid #ccc",
+    borderRadius: "8px",
+    padding: "15px",
+    marginBottom: "10px",
+    background: "#f9f9f9",
+  },
+};
+
+export default App;
